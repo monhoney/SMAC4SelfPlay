@@ -1,0 +1,7 @@
+gym
+torch
+torchvision
+torchaudio
+wandb
+pillow
+joblib
