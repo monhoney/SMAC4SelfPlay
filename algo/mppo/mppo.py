@@ -32,7 +32,7 @@ parser.add_argument('--seed', '-s', type=int, default=0)
 parser.add_argument('--cpu', type=int, default=4)
 parser.add_argument('--steps', type=int, default=4000)
 parser.add_argument('--epochs', type=int, default=50)
-parser.add_argument('--exp_name', type=str, default='ppo')
+parser.add_argument('--exp_name', type=str, default='SMAC_8m_mppo')
 parser.add_argument('--framework', default="smac", choices=['smac'])
 parser.add_argument('--eplen', type=int, default=100)
 parser.set_defaults(record=False)
@@ -257,6 +257,11 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
+
+        if epoch % 10 == 0:
+            print ("save replay")
+            env.save_replay()
+
 
         for t in range(local_steps_per_epoch):
             a_list = []

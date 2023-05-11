@@ -95,6 +95,9 @@ class MoonGym:
 
         return self._get_obs(), reward, terminated
 
+    def save_replay(self):
+        self.mgym.save_replay()
+
 if __name__ == "__main__":
     mgym = MoonGym(framework=MoonGymFramework.ORIGINAL_GYM)
     res = mgym.step(mgym.action_space.sample())
