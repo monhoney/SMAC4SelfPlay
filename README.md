@@ -38,8 +38,8 @@ $ python algo/mppo/mppo.py --env 8m --eplen 120 --epochs 1000
 ```
 
 ## 제공되는 실험들
-| Name | Ally Units | Enemy Units | Type | Max Ep Len |
-| :---: | :---: | :---: | :---:| :---: | :---: | 
+| Name | Ally Units | Enemy Units | Type | Max Ep Len | 
+| :---: | :---: | :---: | :---:| :---: |
 | 3m | 3 Marines | 3 Marines | homogeneous & symmetric | 60 |
 | 8m | 8 Marines | 8 Marines | homogeneous & symmetric | 120 | 
 | 25m | 25 Marines | 25 Marines | homogeneous & symmetric | 150 |
