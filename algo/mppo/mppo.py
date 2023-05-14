@@ -258,7 +258,7 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
 
-        if epoch % 10 == 0:
+        if epoch % 100 == 0:
             print ("save replay")
             env.save_replay()
 

@@ -5,6 +5,8 @@ import numpy as np
 def main():
     env = StarCraft2Env(map_name="8m")
     env_info = env.get_env_info()
+    print ("env_info : ", env_info)
+    return
 
     n_actions = env_info["n_actions"]
     n_agents = env_info["n_agents"]
