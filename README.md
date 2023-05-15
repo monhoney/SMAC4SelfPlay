@@ -37,6 +37,14 @@ $ pip install -e .
 $ python algo/mppo/mppo.py --env 8m --eplen 120 --epochs 1000
 ```
 
+## 결과물 예시
+
+### 3m
+![](https://github.com/monhoney/SMAC2Study/blob/main/asset/3m.gif)
+
+### 8m
+![](https://github.com/monhoney/SMAC2Study/blob/main/asset/8m.gif)
+
 ## 제공되는 실험들
 | Name | Ally Units | Enemy Units | Type | Max Ep Len | 
 | :---: | :---: | :---: | :---:| :---: |
