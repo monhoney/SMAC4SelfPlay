@@ -295,7 +295,7 @@ class StarCraft2Env(MultiAgentEnv):
         self.previous_enemy_units = None
         self.last_action = np.zeros((self.n_agents, self.n_actions))
         self._min_unit_type = 0
-        self.marine_id = self.marauder_id = self.medivac_id = 0
+        self.marine_id = self.marauder_id = self.medivac_id = self.tank_id = 0
         self.hydralisk_id = self.zergling_id = self.baneling_id = 0
         self.stalker_id = self.colossus_id = self.zealot_id = 0
         self.max_distance_x = 0
@@ -1638,6 +1638,8 @@ class StarCraft2Env(MultiAgentEnv):
         self._min_unit_type = min_unit_type
         if self.map_type == "marines":
             self.marine_id = min_unit_type
+        elif self.map_type == "tanks":
+            self.tank_id = min_unit_type
         elif self.map_type == "stalkers_and_zealots":
             self.stalker_id = min_unit_type
             self.zealot_id = min_unit_type + 1

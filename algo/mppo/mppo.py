@@ -35,10 +35,11 @@ parser.add_argument('--epochs', type=int, default=50)
 parser.add_argument('--exp_name', type=str, default='SMAC_8m_mppo')
 parser.add_argument('--framework', default="smac", choices=['smac'])
 parser.add_argument('--eplen', type=int, default=100)
+parser.add_argument('--device', type=str, default="cuda:0")
 parser.set_defaults(record=False)
 args = parser.parse_args()
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
 class PPOBuffer:
     """
