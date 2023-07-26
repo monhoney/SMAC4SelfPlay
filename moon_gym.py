@@ -2,10 +2,11 @@ import os
 from abc import *
 from enum import Enum, auto
 import numpy as np
+import random
 
 import gym
 from gym import spaces
-from smac.env import StarCraft2Env
+from smac.env import StarCraft2Env, StarCraft2SPEnv
 
 # Configure dm_control to use the EGL rendering backend (requires GPU)
 import os
@@ -33,10 +34,13 @@ class SMACActionSpace:
 
     def sample(self):
         return random.choice(range(self.n_actions))
+        #return list(map(lambda x: random.random(), range(self.n_actions)))
+        #return list(map(lambda x: random.choice(range(10)), range(4)))
 
 class MoonGym:
     def __init__(self, env="8m",
-            seed=42, framework=MoonGymFramework.SMAC):
+            seed=42, framework=MoonGymFramework.SMAC,
+            selfplay=False):
 
         print ("*" * 80)
         print ("Framework : ", framework.name)
@@ -45,9 +49,14 @@ class MoonGym:
 
         self.env = env
         self.framework = framework
+        self.selfplay = selfplay
 
         assert self.framework == MoonGymFramework.SMAC
-        self.mgym = StarCraft2Env(map_name=env)
+        
+        if selfplay == True:
+            self.mgym = StarCraft2SPEnv(map_name=env)
+        else:
+            self.mgym = StarCraft2Env(map_name=env)
 
         env_info = self.mgym.get_env_info()
 
@@ -70,7 +79,12 @@ class MoonGym:
     def _get_obs(self):
         obs = self.mgym.get_obs()
         state = self.mgym.get_state()
-        return self.observation_space.get_obs(state, obs)
+
+        if self.selfplay == True:
+            return [self.observation_space.get_obs(state[0], obs[0]),
+                self.observation_space.get_obs(state[0], obs[0])]
+        else:
+            return self.observation_space.get_obs(state, obs)
 
     def reset(self):
         assert self.framework == MoonGymFramework.SMAC
@@ -78,26 +92,45 @@ class MoonGym:
 
         return self._get_obs()
 
-    def choose_actions(self, actions):
+    def choose_actions(self, actions, player_id=None):
+
         result = []
-        for agent_idx in range(self.n_agents):
-            mask_val = self.mgym.get_avail_agent_actions(agent_idx)
-            mask_val = list(map(lambda x: 0 if x ==1 else 1, mask_val))
-            masked_actions = np.ma.masked_array(actions[agent_idx], 
-                mask=mask_val)
-            result.append(masked_actions.argmax())
+        if self.selfplay == True:
+            for agent_idx in range(self.n_agents):
+                mask_val = self.mgym.get_avail_agent_actions(player_id, agent_idx)
+                mask_val = list(map(lambda x: 0 if x ==1 else 1, mask_val))
+                masked_actions = np.ma.masked_array(actions[agent_idx], 
+                    mask=mask_val)
+                result.append(masked_actions.argmax())
+        else:
+            for agent_idx in range(self.n_agents):
+                mask_val = self.mgym.get_avail_agent_actions(agent_idx)
+                mask_val = list(map(lambda x: 0 if x ==1 else 1, mask_val))
+                masked_actions = np.ma.masked_array(actions[agent_idx], 
+                    mask=mask_val)
+                result.append(masked_actions.argmax())
 
         return result
 
     def step(self, actions):
         assert self.framework == MoonGymFramework.SMAC
-        reward, terminated, _ = self.mgym.step(self.choose_actions(actions))
 
-        return self._get_obs(), reward, terminated
+        if self.selfplay == True:
+            reward, terminated, _ = self.mgym.step(\
+                [self.choose_actions(actions[0], player_id=0),
+                self.choose_actions(actions[1], player_id=1)])
+            return self._get_obs(), reward, terminated
+        else:
+            reward, terminated, _ = self.mgym.step(self.choose_actions(actions))
+            return self._get_obs(), reward, terminated
 
     def save_replay(self):
         self.mgym.save_replay()
 
 if __name__ == "__main__":
-    mgym = MoonGym(framework=MoonGymFramework.ORIGINAL_GYM)
-    res = mgym.step(mgym.action_space.sample())
+    mgym = MoonGym(env='Simple64_Tank', framework=MoonGymFramework.SMAC, selfplay=True)
+
+    mgym.reset()
+    for _ in range(10000):
+        mgym.step([list(map(lambda x: random.choice(range(10)), range(4))), 
+        list(map(lambda x: random.choice(range(10)), range(4)))])

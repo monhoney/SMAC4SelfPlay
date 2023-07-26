@@ -24,7 +24,7 @@ import pprint
 import datetime
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', type=str, default='8m')
+parser.add_argument('--env', type=str, default='Simple64_Tank')
 parser.add_argument('--hid', type=int, default=64)
 parser.add_argument('--l', type=int, default=2)
 parser.add_argument('--gamma', type=float, default=0.99)
@@ -38,7 +38,7 @@ parser.add_argument('--eplen', type=int, default=100)
 parser.add_argument('--device', type=str, default="cuda:0")
 parser.add_argument('--selfplay', action='store_true')
 parser.add_argument('--no-selfplay', dest='selfplay', action='store_false')
-parser.set_defaults(selfplay=False)
+parser.set_defaults(selfplay=True)
 parser.add_argument('--wandb', action='store_true')
 parser.add_argument('--no-wandb', dest='wandb', action='store_false')
 parser.set_defaults(wandb=False)
@@ -144,30 +144,31 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     n_agents = env.n_agents
 
     # Create actor-critic module
-    ac_list = []
-    for _ in range(n_agents):
-        ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
-        ac_list.append(ac)
-
-    print ("ac : ", dir(ac_list[0]))
+    ac_list_dic = {0 : [], 1 : []}
+    for p_id in range(2):
+        for _ in range(n_agents):
+            ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+            ac_list_dic[p_id].append(ac)
 
     # Count variables
-    var_counts = tuple(core.count_vars(module) for module in [ac_list[0].pi, ac_list[0].v])
+    var_counts = tuple(core.count_vars(module) for module in [ac_list_dic[0][0].pi, 
+            ac_list_dic[0][0].v])
     logger.log('\nNumber of parameters: \t pi: %d, \t v: %d\n'%var_counts)
 
     # Set up experience buffer
     local_steps_per_epoch = int(steps_per_epoch)
-    buf_list = []
-    for _ in range(n_agents):
-        buf = PPOBuffer(obs_flat_dim, act_dim, local_steps_per_epoch, gamma, lam)
-        buf_list.append(buf)
+    buf_list_dic = {0 : [], 1 : []}
+    for p_id in range(2):
+        for _ in range(n_agents):
+            buf = PPOBuffer(obs_flat_dim, act_dim, local_steps_per_epoch, gamma, lam)
+            buf_list_dic[p_id].append(buf)
 
     # Set up function for computing PPO policy loss
-    def compute_loss_pi(data, agent_idx):
+    def compute_loss_pi(data, player_idx, agent_idx):
         obs, act, adv, logp_old = data['obs'], data['act'], data['adv'], data['logp']
 
         # Policy loss
-        pi, logp = ac_list[agent_idx].pi(obs, act)
+        pi, logp = ac_list_dic[player_idx][agent_idx].pi(obs, act)
         ratio = torch.exp(logp - logp_old)
         clip_adv = torch.clamp(ratio, 1-clip_ratio, 1+clip_ratio) * adv
         loss_pi = -(torch.min(ratio * adv, clip_adv)).mean()
@@ -182,84 +183,99 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         return loss_pi, pi_info
 
     # Set up function for computing value loss
-    def compute_loss_v(data, agent_idx):
+    def compute_loss_v(data, player_idx, agent_idx):
         obs, ret = data['obs'], data['ret']
-        return ((ac_list[agent_idx].v(obs) - ret)**2).mean()
+        return ((ac_list_dic[player_idx][agent_idx].v(obs) - ret)**2).mean()
 
     # Set up optimizers for policy and value function
-    pi_optimizer_list = []
-    vf_optimizer_list = []
+    pi_optimizer_list_dic = {0 : [], 1 : []}
+    vf_optimizer_list_dic = {0 : [], 1 : []}
 
-    for agent_idx in range(n_agents):
-        pi_optimizer = Adam(ac_list[agent_idx].pi.parameters(), lr=pi_lr)
-        vf_optimizer = Adam(ac_list[agent_idx].v.parameters(), lr=vf_lr)
-        pi_optimizer_list.append(pi_optimizer)
-        vf_optimizer_list.append(vf_optimizer)
+    for player_idx in range(2):
+        for agent_idx in range(n_agents):
+            pi_optimizer = Adam(ac_list_dic[player_idx][agent_idx].pi.parameters(), lr=pi_lr)
+            vf_optimizer = Adam(ac_list_dic[player_idx][agent_idx].v.parameters(), lr=vf_lr)
+            pi_optimizer_list_dic[player_idx].append(pi_optimizer)
+            vf_optimizer_list_dic[player_idx].append(vf_optimizer)
 
     # Set up model saving
     # XXX: check!!!
-    logger.setup_pytorch_saver(ac_list)
+    logger.setup_pytorch_saver(ac_list_dic)
 
     def update():
 
-        pi_l_old_list = []
-        v_l_old_list = []
-        kl_list = []
-        ent_list = []
-        cf_list = []
-        delta_loss_pi_list = []
-        delta_loss_v_list = []
+        pi_l_old_list_dic = {0:[],1:[]}
+        v_l_old_list_dic = {0:[],1:[]}
+        kl_list_dic = {0:[],1:[]}
+        ent_list_dic = {0:[],1:[]}
+        cf_list_dic = {0:[],1:[]}
+        delta_loss_pi_list_dic = {0:[],1:[]}
+        delta_loss_v_list_dic = {0:[],1:[]}
 
-        for agent_idx in range(n_agents):
-            data = buf_list[agent_idx].get()
+        for player_idx in range(2):
+            for agent_idx in range(n_agents):
+                data = buf_list_dic[player_idx][agent_idx].get()
 
-            pi_l_old, pi_info_old = compute_loss_pi(data, agent_idx)
-            pi_l_old = pi_l_old.item()
-            v_l_old = compute_loss_v(data, agent_idx).item()
+                pi_l_old, pi_info_old = compute_loss_pi(data, player_idx, agent_idx)
+                pi_l_old = pi_l_old.item()
+                v_l_old = compute_loss_v(data, player_idx, agent_idx).item()
 
-            # Train policy with multiple steps of gradient descent
-            for i in range(train_pi_iters):
-                pi_optimizer_list[agent_idx].zero_grad()
-                loss_pi, pi_info = compute_loss_pi(data, agent_idx)
-                kl = pi_info['kl']
-                if kl > 1.5 * target_kl:
-                    logger.log('Early stopping at step %d due to reaching max kl.'%i)
-                    break
-                loss_pi.backward()
-                pi_optimizer_list[agent_idx].step()
+                # Train policy with multiple steps of gradient descent
+                for i in range(train_pi_iters):
+                    pi_optimizer_list_dic[player_idx][agent_idx].zero_grad()
+                    loss_pi, pi_info = compute_loss_pi(data, player_idx, agent_idx)
+                    kl = pi_info['kl']
+                    if kl > 1.5 * target_kl:
+                        logger.log('Early stopping at step %d due to reaching max kl.'%i)
+                        break
+                    loss_pi.backward()
+                    pi_optimizer_list_dic[player_idx][agent_idx].step()
 
-            # XXX: do not log...
-            #logger.store(StopIter=i)
+                # XXX: do not log...
+                #logger.store(StopIter=i)
 
-            # Value function learning
-            for i in range(train_v_iters):
-                vf_optimizer_list[agent_idx].zero_grad()
-                loss_v = compute_loss_v(data, agent_idx)
-                loss_v.backward()
-                vf_optimizer_list[agent_idx].step()
+                # Value function learning
+                for i in range(train_v_iters):
+                    vf_optimizer_list_dic[player_idx][agent_idx].zero_grad()
+                    loss_v = compute_loss_v(data, player_idx, agent_idx)
+                    loss_v.backward()
+                    vf_optimizer_list_dic[player_idx][agent_idx].step()
 
-            # Log changes from update
-            kl, ent, cf = pi_info['kl'], pi_info_old['ent'], pi_info['cf']
+                # Log changes from update
+                kl, ent, cf = pi_info['kl'], pi_info_old['ent'], pi_info['cf']
 
-            pi_l_old_list.append(pi_l_old)
-            v_l_old_list.append(v_l_old)
-            kl_list.append(kl)
-            ent_list.append(ent)
-            cf_list.append(cf)
-            delta_loss_pi_list.append(loss_pi.item() - pi_l_old)
-            delta_loss_v_list.append(loss_v.item() - v_l_old)
+                pi_l_old_list_dic[player_idx].append(pi_l_old)
+                v_l_old_list_dic[player_idx].append(v_l_old)
+                kl_list_dic[player_idx].append(kl)
+                ent_list_dic[player_idx].append(ent)
+                cf_list_dic[player_idx].append(cf)
+                delta_loss_pi_list_dic[player_idx].append(loss_pi.item() - pi_l_old)
+                delta_loss_v_list_dic[player_idx].append(loss_v.item() - v_l_old)
 
-        logger.store(LossPi=np.mean(pi_l_old_list), LossV=np.mean(v_l_old_list),
-                     KL=np.mean(kl_list), Entropy=np.mean(ent_list), ClipFrac=np.mean(cf_list),
-                     DeltaLossPi=np.mean(delta_loss_pi_list),
-                     DeltaLossV=np.mean(delta_loss_v_list))
+            if player_idx == 0: 
+                logger.store(P0LossPi=np.mean(pi_l_old_list_dic[player_idx]), 
+                        P0LossV=np.mean(v_l_old_list_dic[player_idx]),
+                        P0KL=np.mean(kl_list_dic[player_idx]),
+                        P0Entropy=np.mean(ent_list_dic[player_idx]),
+                        P0ClipFrac=np.mean(cf_list_dic[player_idx]),
+                        P0DeltaLossPi=np.mean(delta_loss_pi_list_dic[player_idx]),
+                        P0DeltaLossV=np.mean(delta_loss_v_list_dic[player_idx]))
+            else:
+                logger.store(P1LossPi=np.mean(pi_l_old_list_dic[player_idx]), 
+                        P1LossV=np.mean(v_l_old_list_dic[player_idx]),
+                        P1KL=np.mean(kl_list_dic[player_idx]),
+                        P1Entropy=np.mean(ent_list_dic[player_idx]),
+                        P1ClipFrac=np.mean(cf_list_dic[player_idx]),
+                        P1DeltaLossPi=np.mean(delta_loss_pi_list_dic[player_idx]),
+                        P1DeltaLossV=np.mean(delta_loss_v_list_dic[player_idx]))
 
     # Prepare for interaction with environment
     start_time = time.time()
 
     o = env.reset()
-    #o = o.flatten()
-    ep_ret, ep_len = 0, 0
+    o_dic = {0:o[0], 1:o[1]}
+    ep_ret_dic = {0:0, 1:0}
+    ep_len = 0
 
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
@@ -268,28 +284,41 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             print ("save replay")
             env.save_replay()
 
-
         for t in range(local_steps_per_epoch):
-            a_list = []
-            v_list = []
-            logp_list = []
+            a_list_dic = {0 : [], 1 : []}
+            v_list_dic = {0 : [], 1 : []}
+            logp_list_dic = {0 : [], 1 : []}
 
-            for agent_idx in range(n_agents):
-                a, v, logp = \
-                    ac_list[agent_idx].step(torch.as_tensor(o[agent_idx], dtype=torch.float32).to(device))
-                
-                a_list.append(a)
-                v_list.append(v)
-                logp_list.append(logp)
+            for player_idx in range(2):
+                for agent_idx in range(n_agents):
+                    a, v, logp = \
+                        ac_list_dic[player_idx][agent_idx].step(torch.as_tensor(\
+                            o_dic[player_idx][agent_idx], 
+                            dtype=torch.float32).to(device))
+                    
+                    a_list_dic[player_idx].append(a)
+                    v_list_dic[player_idx].append(v)
+                    logp_list_dic[player_idx].append(logp)
 
-            next_o, r, d = env.step(a_list)
-            ep_ret += r
+            next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
+            ep_ret_dic[0] += r[0]
+            ep_ret_dic[1] += r[1]
             ep_len += 1
 
             # save and log
-            for agent_idx in range(n_agents):
-                buf_list[agent_idx].store(o[agent_idx], a_list[agent_idx], r, v_list[agent_idx], logp_list[agent_idx])
-            logger.store(VVals=np.mean(v_list))
+            for player_idx in range(2):
+                for agent_idx in range(n_agents):
+                    buf_list_dic[player_idx][agent_idx].store(\
+                        o_dic[player_idx][agent_idx], 
+                        a_list_dic[player_idx][agent_idx], 
+                        r[player_idx], 
+                        v_list_dic[player_idx][agent_idx], 
+                        logp_list_dic[player_idx][agent_idx])
+
+                if player_idx == 0:
+                    logger.store(P0VVals=np.mean(v_list_dic[0]))
+                else:
+                    logger.store(P1VVals=np.mean(v_list_dic[1]))
             
             # Update obs (critical!)
             o = next_o
@@ -299,21 +328,25 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             epoch_ended = t==local_steps_per_epoch-1
 
             if terminal or epoch_ended:
-                for agent_idx in range(n_agents):
-                    if epoch_ended and not(terminal) and agent_idx == 0:
-                        print('Warning: trajectory cut off by epoch at %d steps.'%ep_len, flush=True)
-                    # if trajectory didn't reach terminal state, bootstrap value target
-                    if timeout or epoch_ended:
-                        _, v, _ = ac_list[agent_idx].step(torch.as_tensor(o[agent_idx], dtype=torch.float32).to(device))
-                    else:
-                        v = 0
-                    buf_list[agent_idx].finish_path(v)
+                for player_idx in range(2):
+                    for agent_idx in range(n_agents):
+                        if epoch_ended and not(terminal) and agent_idx == 0 and player_idx == 0:
+                            print('Warning: trajectory cut off by epoch at %d steps.'%ep_len, flush=True)
+                        # if trajectory didn't reach terminal state, bootstrap value target
+                        if timeout or epoch_ended:
+                            _, v, _ = ac_list_dic[player_idx][agent_idx].step(\
+                                torch.as_tensor(o_dic[player_idx][agent_idx], 
+                                    dtype=torch.float32).to(device))
+                        else:
+                            v = 0
+                        buf_list_dic[player_idx][agent_idx].finish_path(v)
 
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
-                    logger.store(EpRet=ep_ret, EpLen=ep_len)
+                    logger.store(P0EpRet=ep_ret_dic[0], P1EpRet=ep_ret_dic[1], EpLen=ep_len)
                 o = env.reset()
-                ep_ret, ep_len = 0, 0
+                ep_ret_dic = {0:0, 1:0}
+                ep_len = 0
 
         # Save model
         if (epoch % save_freq == 0) or (epoch == epochs-1):
@@ -323,29 +356,47 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         update()
         
         # Log info about epoch
-        logger.log_wandb([['EpRet', True, False],
+        logger.log_wandb([['P0EpRet', True, False],
+            ['P1EpRet', True, False],
             ['EpLen', False, True],
-            ['VVals', True, False],
-            ['LossPi', False, True],
-            ['LossV', False, True],
-            ['DeltaLossPi', False, True],
-            ['DeltaLossV', False, True],
-            ['Entropy', False, True],
-            ['KL', False, True],
-            ['ClipFrac', False, True]])
+            ['P0VVals', True, False],
+            ['P1VVals', True, False],
+            ['P0LossPi', False, True],
+            ['P1LossPi', False, True],
+            ['P0LossV', False, True],
+            ['P1LossV', False, True],
+            ['P0DeltaLossPi', False, True],
+            ['P1DeltaLossPi', False, True],
+            ['P0DeltaLossV', False, True],
+            ['P1DeltaLossV', False, True],
+            ['P0Entropy', False, True],
+            ['P1Entropy', False, True],
+            ['P0KL', False, True],
+            ['P1KL', False, True],
+            ['P0ClipFrac', False, True],
+            ['P1ClipFrac', False, True]])
 
         logger.log_tabular('Epoch', epoch)
-        logger.log_tabular('EpRet', with_min_and_max=True)
+        logger.log_tabular('P0EpRet', with_min_and_max=True)
+        logger.log_tabular('P1EpRet', with_min_and_max=True)
         logger.log_tabular('EpLen', average_only=True)
-        logger.log_tabular('VVals', with_min_and_max=True)
+        logger.log_tabular('P0VVals', with_min_and_max=True)
+        logger.log_tabular('P1VVals', with_min_and_max=True)
         logger.log_tabular('TotalEnvInteracts', (epoch+1)*steps_per_epoch)
-        logger.log_tabular('LossPi', average_only=True)
-        logger.log_tabular('LossV', average_only=True)
-        logger.log_tabular('DeltaLossPi', average_only=True)
-        logger.log_tabular('DeltaLossV', average_only=True)
-        logger.log_tabular('Entropy', average_only=True)
-        logger.log_tabular('KL', average_only=True)
-        logger.log_tabular('ClipFrac', average_only=True)
+        logger.log_tabular('P0LossPi', average_only=True)
+        logger.log_tabular('P1LossPi', average_only=True)
+        logger.log_tabular('P0LossV', average_only=True)
+        logger.log_tabular('P1LossV', average_only=True)
+        logger.log_tabular('P0DeltaLossPi', average_only=True)
+        logger.log_tabular('P1DeltaLossPi', average_only=True)
+        logger.log_tabular('P0DeltaLossV', average_only=True)
+        logger.log_tabular('P1DeltaLossV', average_only=True)
+        logger.log_tabular('P0Entropy', average_only=True)
+        logger.log_tabular('P1Entropy', average_only=True)
+        logger.log_tabular('P0KL', average_only=True)
+        logger.log_tabular('P1KL', average_only=True)
+        logger.log_tabular('P0ClipFrac', average_only=True)
+        logger.log_tabular('P1ClipFrac', average_only=True)
         logger.log_tabular('Time', time.time()-start_time)
         logger.dump_tabular()
 
@@ -421,7 +472,7 @@ if __name__ == '__main__':
     assert args.framework == "smac"
     framework = MoonGymFramework.SMAC
 
-    mppo(lambda : MoonGym(args.env, framework=framework, 
+    mppo(lambda : MoonGym(args.env, framework=framework,
         selfplay=args.selfplay),
         actor_critic=core.MLPActorCritic,
         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
