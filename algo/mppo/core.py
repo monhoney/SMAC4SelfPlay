@@ -137,3 +137,13 @@ class MLPActorCritic(nn.Module):
 
     def act(self, obs):
         return self.step(obs)[0]
+
+    def step_max(self, obs):
+        with torch.no_grad():
+            pi = self.pi._distribution(obs)
+            if torch.cuda.is_available():
+                #return np.argmax(pi.loc.cpu().numpy())
+                return pi.loc.cpu().numpy()
+            else:
+                #return np.argmax(pi.loc.numpy())
+                return pi.loc.numpy()

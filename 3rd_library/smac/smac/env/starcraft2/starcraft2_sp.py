@@ -349,7 +349,12 @@ class StarCraft2SPEnv(MultiAgentEnv):
                 extra_ports=self._ports, want_rgb=False) for _ in range(self._players)]
         self._controller_array = [p.controller for p in self._sc2_proc_array]
 
+        for c in self._controller_array:  # Serial due to a race condition on Windows.
+            c.save_map(_map.path, _map.data(self._run_config))
         # Request to create the game
+
+        print ("_map : ", _map)
+        print ("_map.path : ", _map.path)
         create = sc_pb.RequestCreateGame(
             local_map=sc_pb.LocalMap(
                 map_path=_map.path,

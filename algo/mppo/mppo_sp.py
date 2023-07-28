@@ -32,7 +32,7 @@ parser.add_argument('--seed', '-s', type=int, default=0)
 parser.add_argument('--cpu', type=int, default=4)
 parser.add_argument('--steps', type=int, default=4000)
 parser.add_argument('--epochs', type=int, default=50)
-parser.add_argument('--exp_name', type=str, default='SMAC_8m_mppo')
+parser.add_argument('--exp_name', type=str, default='SMAC_SP')
 parser.add_argument('--framework', default="smac", choices=['smac'])
 parser.add_argument('--eplen', type=int, default=100)
 parser.add_argument('--device', type=str, default="cuda:0")
@@ -42,6 +42,10 @@ parser.set_defaults(selfplay=True)
 parser.add_argument('--wandb', action='store_true')
 parser.add_argument('--no-wandb', dest='wandb', action='store_false')
 parser.set_defaults(wandb=False)
+parser.add_argument('--train', action='store_true')
+parser.add_argument('--test', dest='train', action='store_false')
+parser.set_defaults(train=True)
+parser.add_argument('--model_filepath', type=str, default="")
 args = parser.parse_args()
 
 device = torch.device(args.device if torch.cuda.is_available() else "cpu")
@@ -464,17 +468,78 @@ def setup_logger_kwargs(exp_name, seed=None, data_dir=None, datestamp=False, use
     logger_kwargs = dict(output_dir=osp.join(data_dir, relpath), 
                          exp_name=exp_name, use_wandb=use_wandb)
     return logger_kwargs
+
 if __name__ == '__main__':
 
-    logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed, use_wandb=args.wandb)
-    torch.set_num_threads(torch.get_num_threads())
+    if args.train == True:
+        logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed, use_wandb=args.wandb)
+        torch.set_num_threads(torch.get_num_threads())
 
-    assert args.framework == "smac"
-    framework = MoonGymFramework.SMAC
+        assert args.framework == "smac"
+        framework = MoonGymFramework.SMAC
 
-    mppo(lambda : MoonGym(args.env, framework=framework,
-        selfplay=args.selfplay),
-        actor_critic=core.MLPActorCritic,
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
-        seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
-        max_ep_len=args.eplen, logger_kwargs=logger_kwargs)
+        mppo(lambda : MoonGym(args.env, framework=framework,
+            selfplay=args.selfplay),
+            actor_critic=core.MLPActorCritic,
+            ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
+            seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
+            max_ep_len=args.eplen, logger_kwargs=logger_kwargs)
+
+    else:
+        #args.model_filepath = "/Users/moonhoenlee/work/SMAC2Study/data/SMAC_8m_mppo/SMAC_8m_mppo_s0/pyt_save/model.pt"
+        if args.model_filepath == "":
+            print ("You should set model_filepath in the test mode")
+            sys.exit(1)
+
+        actor_critic=core.MLPActorCritic
+        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l)
+
+        loaded_model_data = torch.load(args.model_filepath, map_location=device)
+
+        framework = MoonGymFramework.SMAC
+        env = MoonGym(args.env, framework=framework, selfplay=args.selfplay)
+
+        obs_dim = env.observation_space.shape
+        obs_flat_dim = (reduce (lambda x,y:x*y, env.observation_space.shape),)
+        act_dim = env.action_space.shape
+        n_agents = env.n_agents
+
+        ac_list_dic = {0 : [], 1 : []}
+        for p_id in range(2):
+            for a_id in range(n_agents):
+                #ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+                #ac.load_state_dict(loaded_model_data[p_id][a_id])
+                ac = loaded_model_data[p_id][a_id]
+                ac.eval()
+                ac_list_dic[p_id].append(ac)
+
+        for test_idx in range(5):
+            o = env.reset()
+            o_dic = {0:o[0], 1:o[1]}
+            ep_ret_dic = {0:0, 1:0}
+            ep_len = 0
+
+            for t in range(args.eplen):
+                a_list_dic = {0 : [], 1 : []}
+                for player_idx in range(2):
+                    for agent_idx in range(n_agents):
+                        a = ac_list_dic[player_idx][agent_idx].step_max(torch.as_tensor(\
+                                o_dic[player_idx][agent_idx], 
+                                dtype=torch.float32).to(device))
+                        a_list_dic[player_idx].append(a)
+                next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
+                ep_ret_dic[0] += r[0]
+                ep_ret_dic[1] += r[1]
+                ep_len += 1
+
+                # Update obs (critical!)
+                o = next_o
+
+                timeout = ep_len == args.eplen
+                terminal = d or timeout
+
+                if terminal or timeout:
+                    print ("[TEST Episode #%d] EPLEN=%d, REWARD:(%.2f,%.2f)" %\
+                        (test_idx, ep_len, ep_ret_dic[0], ep_ret_dic[1]))
+                    break
+
