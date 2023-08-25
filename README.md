@@ -71,3 +71,26 @@ $ python algo/mppo/mppo.py --env 8m --eplen 120 --epochs 1000
 | so_many_banelings| 7 Zealots  | 32 Banelings | micro-trick: positioning | N/A |
 | 2c_vs_64zg| 2 Colossi  | 64 Zerglings | micro-trick: positioning | 400 |
 | 1c3s5z | 1 Colossi & 3 Stalkers & 5 Zealots | 1 Colossi & 3 Stalkers & 5 Zealots | heterogeneous & symmetric | 180 |
+
+# SMAC for Self-Play
+
+## 준비 사항
+* SelfPlay용 맵이 따로 존재하며 현재는 1개의 맵(`Simple64_Tank.SC2Map`)를 지원되고 있다. 
+* 참고로 해당 맵은 `3rd_library/smac/smac/env/starcraft2/maps/SMAC_Maps` 폴더 아래에 있다.
+* 맵 파일을 스타크래프트가 설치된 폴더(ex. `$HOME/StarCraftII/Maps/SMAC_Maps`)에 복사를 하면 된다.
+```
+$ cp $BASE_DIR/3rd_library/smac/smac/env/starcraft2/maps/SMAC_Maps/Simple64_Tank.SC2Map $HOME/StarCraftII/Maps/SMAC_Maps/.
+```
+
+## 학습방법
+실험명을 `TEST_EXP_NAME`이라고 하는 경우에 아래와 같은 형태로 학습을 하면 된다.
+```
+$ python algo/mppo/mppo_sp.py --env Simple64_Tank --eplen 80 --epochs 1000 --exp_name TEST_EXP_NAME
+```
+
+## 학습 결과 확인 방법
+* 실험명이 `TEST_EXP_NAME`인 경우 기본적으로 모델 파일은 `$BASE_DIR/TEST_EXP_NAME/TEST_EXP_NAME_s0/pyt_save/model.pt`라는 이름으로 저장이 된다.
+* 아래와 같이 학습 결과물을 5회 테스트를 할 수 있다.
+```
+$ python algo/mppo/mppo_sp.py --test --model_filepath $BASE_DIR/TEST_EXP_NAME/TEST_EXP_NAME_s0/pyt_save/model.pt
+```
