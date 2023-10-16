@@ -138,7 +138,7 @@ class Logger:
             if run_name is None:
                 wandb.init(project=exp_name, config=info)
             else:
-                wandb.init(project=exp_name, config=info, run_name=run_name)
+                wandb.init(project=exp_name, config=info, name=run_name)
 
     def log(self, msg, color='green'):
         """Print a colorized message to stdout."""
