@@ -17,7 +17,7 @@ DEFAULT_DATA_DIR = osp.join(osp.abspath(osp.dirname(osp.dirname(__file__))),'dat
 
 # Whether to automatically insert a date and time stamp into the names of
 # save directories:
-FORCE_DATESTAMP = False
+FORCE_DATESTAMP = True
 
 # Whether GridSearch provides automatically-generated default shorthands:
 DEFAULT_SHORTHAND = True
