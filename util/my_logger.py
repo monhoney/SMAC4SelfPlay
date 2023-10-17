@@ -331,7 +331,7 @@ class Logger:
             # not being able to save the source code.
 
             if key is None:
-                torch.save(self.pytorch_saver_elements.state_dict(), fname)
+                torch.save(self.pytorch_saver_elements, fname)
             else:
                 torch.save(self.pytorch_saver_elements[key].state_dict(), fname)
 

@@ -68,6 +68,15 @@ map_param_registry = {
         "unit_type_bits": 0,
         "map_type": "tanks",
     },
+    "Simple64_Tank_v2": {
+        "n_agents": 4,
+        "n_enemies": 4,
+        "limit": 80,
+        "a_race": "T",
+        "b_race": "T",
+        "unit_type_bits": 0,
+        "map_type": "tanks",
+    },
     "4t": {
         "n_agents": 4,
         "n_enemies": 4,
