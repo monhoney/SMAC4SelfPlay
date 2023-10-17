@@ -99,7 +99,8 @@ class Logger:
     state of a training run, and the trained model.
     """
 
-    def __init__(self, output_dir=None, output_fname='progress.txt', exp_name=None, info={}, use_wandb=True):
+    def __init__(self, output_dir=None, output_fname='progress.txt',
+            exp_name=None, info={}, use_wandb=True, run_name=None):
         """
         Initialize a Logger.
 
@@ -134,7 +135,10 @@ class Logger:
 
         self.use_wandb = use_wandb
         if use_wandb == True:
-            wandb.init(project=exp_name, config=info)
+            if run_name is None:
+                wandb.init(project=exp_name, config=info)
+            else:
+                wandb.init(project=exp_name, config=info, name=run_name)
 
     def log(self, msg, color='green'):
         """Print a colorized message to stdout."""
@@ -191,7 +195,7 @@ class Logger:
         with open(osp.join(self.output_dir, "config.json"), 'w') as out:
             out.write(output)
 
-    def save_state(self, state_dict, itr=None):
+    def save_state(self, state_dict, itr=None, key=None):
         """
         Saves the state of an experiment.
 
@@ -222,7 +226,7 @@ class Logger:
 #       if hasattr(self, 'tf_saver_elements'):
 #           self._tf_simple_save(itr)
         if hasattr(self, 'pytorch_saver_elements'):
-            self._pytorch_simple_save(itr)
+            self._pytorch_simple_save(itr, key)
 
 #   def setup_tf_saver(self, sess, inputs, outputs):
 #       """
@@ -279,7 +283,27 @@ class Logger:
         """
         self.pytorch_saver_elements = what_to_save
 
-    def _pytorch_simple_save(self, itr=None):
+    def setup_pytorch_saver_with_key(self, what_to_save, key):
+        """
+        Set up easy model saving for a single PyTorch model.
+
+        Because PyTorch saving and loading is especially painless, this is
+        very minimal; we just need references to whatever we would like to 
+        pickle. This is integrated into the logger because the logger
+        knows where the user would like to save information about this
+        training run.
+
+        Args:
+            what_to_save: Any PyTorch model or serializable object containing
+                PyTorch models.
+        """
+
+        if hasattr(self, 'pytorch_saver_elements') == False:
+            self.pytorch_saver_elements = dict()
+
+        self.pytorch_saver_elements[key] = what_to_save
+
+    def _pytorch_simple_save(self, itr=None, key=None):
         """
         Saves the PyTorch model (or models).
         """
@@ -287,9 +311,14 @@ class Logger:
             "First have to setup saving with self.setup_pytorch_saver"
         fpath = 'pyt_save'
         fpath = osp.join(self.output_dir, fpath)
+        os.makedirs(fpath, exist_ok=True)
+
+        if key is not None:
+            fpath = osp.join(fpath, key)
+            os.makedirs(fpath, exist_ok=True)
+
         fname = 'model' + ('%d'%itr if itr is not None else '') + '.pt'
         fname = osp.join(fpath, fname)
-        os.makedirs(fpath, exist_ok=True)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             # We are using a non-recommended way of saving PyTorch models,
@@ -300,8 +329,11 @@ class Logger:
             # something different for your personal PyTorch project.
             # We use a catch_warnings() context to avoid the warnings about
             # not being able to save the source code.
-            torch.save(self.pytorch_saver_elements, fname)
 
+            if key is None:
+                torch.save(self.pytorch_saver_elements.state_dict(), fname)
+            else:
+                torch.save(self.pytorch_saver_elements[key].state_dict(), fname)
 
     def dump_tabular(self):
         """

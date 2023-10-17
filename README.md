@@ -94,3 +94,28 @@ $ python algo/mppo/mppo_sp.py --env Simple64_Tank --eplen 80 --epochs 1000 --exp
 ```
 $ python algo/mppo/mppo_sp.py --test --model_filepath $BASE_DIR/TEST_EXP_NAME/TEST_EXP_NAME_s0/pyt_save/model.pt
 ```
+
+# SMAC for Self-Play version2
+
+## 설명
+* 기존 SMAC for Self-Play의 경우에 PPO와 Framework가 tightly coupled 되어 있어서 새로운 알고리즘을 돌리기 어려웠음
+* 현재 SMAC for Self-Play ver2의 경우에 알고리즘을 등록하면 사용할 수 있는 구조로 되어 있음
+
+## 알고리즘 추가 방법
+* algo2 폴더 아래에 알고리즘이름(ex. ABC)으로 폴더를 만들고 그 밑에 run.py파일을 만든다.
+* run.py파일은 algo2/wrapper.py의 RLAlgoWrapper를 상속한 ABC 클래스로 작성한다. RLAlgoWrapper에서 사용된 함수들은 모두 구현해야 한다.
+* algo2/register.py파일에 추가할 ABC 알고리즘에 대한 정보를 등록한다.
+
+## 학습방법
+* player이 학습이 될 알고리즘이고, enemy가 상대편 알고리즘이다.
+* player를 PPO, enemy를 RANDOM으로 학습하는 경우에 아래와 같이 학습을 한다.
+```
+$ python train.py --player_algo PPO --enemy_algo RANDOM 
+```
+
+### 학습한 모델끼리 학습을 하는 경우
+* 'data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save' 에 저장된 PPO 모델끼리 학습하는 경우에 아래와 같이 학습을 한다.
+```
+$ python train.py --player_algo PPO --player_model_path data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save'--enemy_algo PPO --enemy_model_path data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save'--enemy_algo
+```
+
