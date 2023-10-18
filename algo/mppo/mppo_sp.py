@@ -9,7 +9,7 @@ import sys
 if 'BASE_DIR' in os.environ:
     sys.path.append(os.environ['BASE_DIR'])
 else:
-    sys.path.append(os.path.join(os.environ['HOME'], 'work', 'SMAC2Study'))
+    sys.path.append(os.path.join(os.environ['HOME'], 'projects', 'SMAC2Study'))
 import algo.mppo.core as core
 from util.my_logger import EpochLogger
 

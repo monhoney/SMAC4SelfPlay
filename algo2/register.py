@@ -3,10 +3,12 @@
 #########################################
 from algo2.ppo.run      import PPO
 from algo2.random.run   import RANDOM
+from algo2.sac.run      import SAC
 
 ALGO_DICT = {
     "PPO"       : PPO,
-    "RANDOM"    : RANDOM
+    "RANDOM"    : RANDOM,
+    "SAC"       : SAC
 }
 
 def get_algo(algo_name):

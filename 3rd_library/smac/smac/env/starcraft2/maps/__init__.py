@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from smac.env.starcraft2.maps import smac_maps, smac_plus_maps
 
-def get_map_params(map_name, type="smac_plus"):
+def get_map_params(map_name, type="smac"):
     if type == "smac_plus":
         map_param_registry = smac_plus_maps.get_smac_map_registry()    
     elif type == "smac":
