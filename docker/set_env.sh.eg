@@ -1,0 +1,18 @@
+export USE_DEV_DOCKER=false
+export BUILD_NO_CACHE=false
+export BUILD_NO_CACHE_BY_LINE=true
+
+export IMAGE=psmac
+export CONTAINER_NAME=spsmac-container0
+export SC2_PATH=$HOME/StarCraftII
+export GPU_OPTION='"device=0"'
+
+if $BUILD_NO_CACHE
+then
+    export BUILD_OPTION='--no-cache'
+elif $BUILD_NO_CACHE_BY_LINE
+then
+    export BUILD_OPTION=$(eval echo "--build-arg DISABLE_CACHE=$(date +%s)")
+else
+    export BUILD_OPTION=''
+fi
