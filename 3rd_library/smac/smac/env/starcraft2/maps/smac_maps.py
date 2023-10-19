@@ -62,7 +62,7 @@ map_param_registry = {
     "Simple64_Tank": {
         "n_agents": 4,
         "n_enemies": 4,
-        "limit": 80,
+        "limit": 100,
         "a_race": "T",
         "b_race": "T",
         "unit_type_bits": 0,
@@ -71,7 +71,7 @@ map_param_registry = {
     "Simple64_Tank_v2": {
         "n_agents": 4,
         "n_enemies": 4,
-        "limit": 80,
+        "limit": 100,
         "a_race": "T",
         "b_race": "T",
         "unit_type_bits": 0,
@@ -80,7 +80,7 @@ map_param_registry = {
     "Simple64_Hydra_v2": {
         "n_agents": 4,
         "n_enemies": 4,
-        "limit": 80,
+        "limit": 100,
         "a_race": "Z",
         "b_race": "Z",
         "unit_type_bits": 0,
@@ -89,7 +89,7 @@ map_param_registry = {
     "Simple64_Stalker_v2": {
         "n_agents": 4,
         "n_enemies": 4,
-        "limit": 80,
+        "limit": 100,
         "a_race": "P",
         "b_race": "P",
         "unit_type_bits": 0,
@@ -98,7 +98,7 @@ map_param_registry = {
     "Simple64_6Tank_v2": {
         "n_agents": 6,
         "n_enemies": 6,
-        "limit": 80,
+        "limit": 100,
         "a_race": "T",
         "b_race": "T",
         "unit_type_bits": 0,
@@ -107,7 +107,7 @@ map_param_registry = {
     "Simple64_8Tank_v2": {
         "n_agents": 8,
         "n_enemies": 8,
-        "limit": 80,
+        "limit": 100,
         "a_race": "T",
         "b_race": "T",
         "unit_type_bits": 0,

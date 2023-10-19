@@ -5,3 +5,5 @@ torchaudio
 wandb
 pillow
 joblib
+ipdb
+tqdm
