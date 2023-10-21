@@ -73,6 +73,7 @@ if __name__ == "__main__":
     enemy_win = 0
     draw = 0
     eplens = []
+    win_eplens = []
     player_rewards = []
     enemy_rewards = []
 
@@ -110,10 +111,12 @@ if __name__ == "__main__":
 #               break
                 
             if d == True:
-                if player_reward > enemy_reward:
-                    player_win = player_win + 1
-                elif player_rewards == enemy_reward:
+                is_win = False
+                if t == args.eplen -1:
                     draw = draw + 1
+                elif player_reward > enemy_reward:
+                    player_win = player_win + 1
+                    is_win = True
                 else:
                     enemy_win = enemy_win + 1
                 eplen = t + 1
@@ -123,7 +126,10 @@ if __name__ == "__main__":
 
         player_rewards.append(player_reward)
         enemy_rewards.append(enemy_reward)
+
         eplens.append(eplen)
+        if is_win == True:
+            win_eplens.append(eplen)
 
     print ("*" * 80)
     print ("%s vs %s" % (args.player_algo, args.enemy_algo))
@@ -134,6 +140,8 @@ if __name__ == "__main__":
     print ("Average Player Return : %.3f" % (np.array(player_rewards).mean()))
     print ("Average Enemy Return : %.3f" % (np.array(enemy_rewards).mean()))
     print ("Average EpLen : %.3f" % (np.array(eplens).mean()))
+    if player_win > 0:
+        print ("Average Win EpLen : %.3f" % (np.array(win_eplens).mean()))
     print ("*" * 80)
 
     if args.json_output != "":
