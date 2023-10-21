@@ -20,7 +20,7 @@ class SAC(RLAlgoWrapper):
         # self.tau = 0.005
         # self.alpha = 0.2
 
-        self.policy_type = "Gaussian" # or "Deterministic"
+        self.policy_type = args.policy_type # "Gaussian" # or "Deterministic" #
         # self.target_update_interval = 1
         # self.automatic_entropy_tuning = False
 
@@ -60,11 +60,21 @@ class SAC(RLAlgoWrapper):
             _, _, action = self.policy.sample(state)
         return action.detach().cpu().numpy()[0]
     
-    def handle_step(self, state, action, reward, next_state, is_done, timeout, epoch_ended):
+    def handle_step(self, state, action, reward, next_state, is_done, timeout, epoch_ended, logger=None):
         mask = 1 if timeout else float(not is_done)
         self.memory.push(state, action, reward, next_state, mask)
         if len(self.memory) > self.batch_size:
-            self._update(updates=False)
+            if args.hard_update:
+                qf1_loss, qf2_loss, policy_loss, alpha_loss, alpha_tlogs = self._update(updates=False)
+            else:
+                qf1_loss, qf2_loss, policy_loss, alpha_loss, alpha_tlogs = self._update(updates=True)
+            # if logger is not None:
+            #     logger.log_tabular('qf1_loss', qf1_loss)
+            #     logger.log_tabular('qf2_loss', qf2_loss)
+            #     logger.log_tabular('policy_loss', policy_loss)
+            #     logger.log_tabular('alpha_loss', alpha_loss)
+            #     logger.log_tabular('alpha_tlogs', alpha_tlogs)
+            #     logger.dump_tabular()
 
     def _update(self, updates=False):
         # Sample a batch from memory
@@ -76,8 +86,18 @@ class SAC(RLAlgoWrapper):
         reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze(1)
         mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze(1)
 
-        qf1_loss, qf2_loss, policy_loss, alpha_loss, alpha_tlogs = \
-            self.ac.step(state_batch, action_batch, next_state_batch, mask_batch, reward_batch, updates)
+        # qf1_loss, qf2_loss, policy_loss, alpha_loss, alpha_tlogs = \
+        return self.ac.step(state_batch, action_batch, next_state_batch, mask_batch, reward_batch, updates)
     
-    def handle_epoch(self): 
-        self._update(updates=True)
+    def handle_epoch(self, logger=None): 
+        if args.hard_update:
+            qf1_loss, qf2_loss, policy_loss, alpha_loss, alpha_tlogs = self._update(updates=True)
+        else:
+            pass
+        # if logger is not None:
+        #     logger.store(qf1_loss= qf1_loss, 
+        #                  qf2_loss= qf2_loss,
+        #                  policy_loss= policy_loss,
+        #                  alpha_loss= alpha_loss,
+        #                  alpha_tlogs= alpha_tlogs)
+            # logger.dump_tabular()

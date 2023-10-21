@@ -38,6 +38,19 @@ parser.add_argument('--enemy_model_path', type=str, default='')
 parser.add_argument('--save_freq', type=int, default=10)
 parser.add_argument('--test_round_count', type=int, default=20)
 parser.add_argument('--json_output', type=str, default='')
+########## SAC arguments ###################
+parser.add_argument('--hard_update', action='store_true')
+parser.add_argument('--no-hard_update', dest='hard_update', action='store_false')
+parser.set_defaults(hard_update=False)
+parser.add_argument('--policy_type', type=str, default='Gaussian', 
+                    help='Deterministic can be another option')
+parser.add_argument('--tau', type=float, default=0.005)
+parser.add_argument('--alpha', type=float, default=0.2)
+parser.add_argument('--sac_lr', type=float, default=0.0003)
+parser.add_argument('--automatic_entropy_tuning', action='store_true')
+parser.add_argument('--no-automatic_entropy_tuning', dest='automatic_entropy_tuning', action='store_false')
+parser.set_defaults(automatic_entropy_tuning=False)
+################################################
 args = parser.parse_args()
 
 device = torch.device(args.device if torch.cuda.is_available() else "cpu")

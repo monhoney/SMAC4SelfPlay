@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
+from util.env import args, device
 
 from algo2.sac.utils import soft_update, hard_update
 from torch.optim import Adam
@@ -138,10 +139,12 @@ class DeterministicPolicy(nn.Module):
             self.action_scale = 1.
             self.action_bias = 0.
         else:
-            self.action_scale = torch.FloatTensor(
-                (action_space.high - action_space.low) / 2.)
-            self.action_bias = torch.FloatTensor(
-                (action_space.high + action_space.low) / 2.)
+            self.action_scale = torch.FloatTensor([9/2.])
+            self.action_bias = torch.FloatTensor([9/2.])
+            # self.action_scale = torch.FloatTensor(
+            #     (action_space.high - action_space.low) / 2.)
+            # self.action_bias = torch.FloatTensor(
+            #     (action_space.high + action_space.low) / 2.)
 
     def forward(self, state):
         x = F.relu(self.linear1(state))
@@ -166,12 +169,11 @@ class DeterministicPolicy(nn.Module):
 class ActorCritic(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_dim, device, policy_type='Gaussian', action_space=None):
         super().__init__()
-        self.gamma = 0.99
-        self.tau = 0.005
-        self.alpha = 0.2
-        self.lr = 0.0003
-        self.automatic_entropy_tuning = False
-
+        self.gamma = args.gamma
+        self.tau = args.tau # 1 #0.005
+        self.alpha = args.alpha # 0.05 #0.2
+        self.lr = args.sac_lr #0.0003
+        self.automatic_entropy_tuning = args.automatic_entropy_tuning
         self.device = device
         self.critic = QNetwork(num_inputs, num_actions[0], hidden_dim).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
