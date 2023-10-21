@@ -20,7 +20,7 @@ from util.user_config import DEFAULT_DATA_DIR, FORCE_DATESTAMP
 from util.user_config import DEFAULT_SHORTHAND, WAIT_BEFORE_LAUNCH
 from util.user_config import DEFAULT_BACKEND
 from moon_gym import MoonGymFramework
-from algo2.register import get_algo
+from algo2.register import get_algo, DEFAULT_MAP_SETTINGS
 
 if __name__ == "__main__":
     torch.set_num_threads(torch.get_num_threads())
@@ -35,11 +35,24 @@ if __name__ == "__main__":
 
     # ALG
     player_algo = get_algo(args.player_algo)
-    enemy_algo = get_algo(args.enemy_algo)
+    if args.enemy_algo.upper() == 'BLIZZARD':
+        use_blizzard_ai = True
+    else:
+        use_blizzard_ai = False
+        enemy_algo = get_algo(args.enemy_algo)
+
+    # set map
+    if args.env == "":
+        args.env = DEFAULT_MAP_SETTINGS[(use_blizzard_ai, args.agent_count)]
+        print ("Map : ", args.env)
 
     # ENV
-    env = MoonGym(args.env, framework=framework,
-        selfplay=args.selfplay)
+    if use_blizzard_ai == True:
+        env = MoonGym(args.env, framework=framework,
+            selfplay=False)
+    else:
+        env = MoonGym(args.env, framework=framework,
+            selfplay=True)
 
     n_agents = env.n_agents
     assert n_agents == args.agent_count
@@ -58,15 +71,16 @@ if __name__ == "__main__":
             model_filepath))
 
     # Agent Enemy - #1
-    p_id = 1
-    algo_dic_list[p_id] = []
-    for agent_idx in range(args.agent_count):
-        model_filepath = ""
-        if len(args.enemy_model_path) > 0:
-            model_filepath = os.path.join(args.enemy_model_path, 
-                "%d/model.pt" % agent_idx)
-        algo_dic_list[p_id].append(enemy_algo(env, args.agent_count, 
-            model_filepath))
+    if use_blizzard_ai == False:
+        p_id = 1
+        algo_dic_list[p_id] = []
+        for agent_idx in range(args.agent_count):
+            model_filepath = ""
+            if len(args.enemy_model_path) > 0:
+                model_filepath = os.path.join(args.enemy_model_path, 
+                    "%d/model.pt" % agent_idx)
+            algo_dic_list[p_id].append(enemy_algo(env, args.agent_count, 
+                model_filepath))
 
 
     player_win = 0
@@ -78,43 +92,44 @@ if __name__ == "__main__":
     enemy_rewards = []
 
     for round in tqdm.tqdm(range(args.test_round_count)):
-        player_reward = 0
-        enemy_reward = 0
         o = env.reset()
-        o_dic = {0:o[0], 1:o[1]}
+        if use_blizzard_ai == True:
+            o_dic = {0:o}
+        else:
+            o_dic = {0:o[0], 1:o[1]}
         eplen = 0
 
-        for t in range(args.eplen * 3):
+        for t in range(args.eplen):
             a_list_dic = {0 : [], 1 : []}
 
             # Action 결정 및 리워드 받기
             for player_idx in range(2):
+                if use_blizzard_ai == True and player_idx == 1:
+                    break
+
                 for agent_idx in range(args.agent_count):
                     a = algo_dic_list[player_idx][agent_idx].act(\
                         o_dic[player_idx][agent_idx], is_train=False)
 
                     a_list_dic[player_idx].append(a)
 
-            next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
-            player_reward += r[0]
-            enemy_reward += r[1]
-
+            if use_blizzard_ai == True:
+                next_o, r, d, info = env.step(a_list_dic[0])
+            else:
+                next_o, r, d, info = env.step([a_list_dic[0], a_list_dic[1]])
+            
             # 알고리즘 Step
-#           if d == True:
-#               if t == args.eplen -1:
-#                   draw = draw + 1
-#               elif player_reward > enemy_reward:
-#                   player_win = player_win + 1
-#               else:
-#                   enemy_win = enemy_win + 1
-#               eplen = t + 1
-#               break
-                
             if d == True:
+                if use_blizzard_ai == True:
+                    battle_won = info['battle_won']
+                else:
+                    battle_won = info[0]['battle_won']
+
                 is_win = False
                 if t == args.eplen -1:
+                    print (info)
                     draw = draw + 1
-                elif player_reward > enemy_reward:
+                elif battle_won == True:
                     player_win = player_win + 1
                     is_win = True
                 else:
@@ -123,9 +138,6 @@ if __name__ == "__main__":
                 break
             
             o = next_o
-
-        player_rewards.append(player_reward)
-        enemy_rewards.append(enemy_reward)
 
         eplens.append(eplen)
         if is_win == True:
@@ -137,8 +149,6 @@ if __name__ == "__main__":
     print ("Enemy Win : %d" % enemy_win)
     print ("Draw : %d" % draw)
     print ("Player Win Ratio : %.3f" % (player_win / args.test_round_count))
-    print ("Average Player Return : %.3f" % (np.array(player_rewards).mean()))
-    print ("Average Enemy Return : %.3f" % (np.array(enemy_rewards).mean()))
     print ("Average EpLen : %.3f" % (np.array(eplens).mean()))
     if player_win > 0:
         print ("Average Win EpLen : %.3f" % (np.array(win_eplens).mean()))
@@ -148,9 +158,8 @@ if __name__ == "__main__":
         result = {"PlayerWin" : player_win,
             "EnemyWin" : enemy_win,
             "Draw" : draw,
-            "PlayerReturns" : player_rewards,
-            "EnemyReward" : enemy_rewards,
-            "EpLens" : eplens}
+            "EpLens" : eplens,
+            "WinEpLens" : win_eplens}
         with open(args.json_output, "w") as f:
             json.dump(result, f, indent=4) 
 

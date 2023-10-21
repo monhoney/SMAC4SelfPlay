@@ -345,7 +345,7 @@ def mppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),
                     v_list_dic[player_idx].append(v)
                     logp_list_dic[player_idx].append(logp)
 
-            next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
+            next_o, r, d, _ = env.step([a_list_dic[0], a_list_dic[1]])
             ep_ret_dic[0] += r[0]
             ep_ret_dic[1] += r[1]
             ep_len += 1
