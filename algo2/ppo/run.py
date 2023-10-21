@@ -39,7 +39,7 @@ class PPO(RLAlgoWrapper):
 
         if load_model_path != "":
             print ("model is loaded!!! (path=%s)" % load_model_path)
-            self.ac.load_state_dict(torch.load(load_model_path))
+            self.ac.load_state_dict(torch.load(load_model_path, map_location=device))
 
         # Optimizer 설정
         self.pi_optimizer = Adam(self.ac.pi.parameters(), lr=self.pi_lr)

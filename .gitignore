@@ -163,3 +163,4 @@ wandb/
 .swp
 data/
 set_env.sh
+.DS_Store

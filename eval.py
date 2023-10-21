@@ -83,7 +83,7 @@ if __name__ == "__main__":
         o_dic = {0:o[0], 1:o[1]}
         eplen = 0
 
-        for t in range(args.eplen):
+        for t in range(args.eplen * 3):
             a_list_dic = {0 : [], 1 : []}
 
             # Action 결정 및 리워드 받기
@@ -99,11 +99,21 @@ if __name__ == "__main__":
             enemy_reward += r[1]
 
             # 알고리즘 Step
+#           if d == True:
+#               if t == args.eplen -1:
+#                   draw = draw + 1
+#               elif player_reward > enemy_reward:
+#                   player_win = player_win + 1
+#               else:
+#                   enemy_win = enemy_win + 1
+#               eplen = t + 1
+#               break
+                
             if d == True:
-                if t == args.eplen -1:
-                    draw = draw + 1
-                elif player_reward > enemy_reward:
+                if player_reward > enemy_reward:
                     player_win = player_win + 1
+                elif player_rewards == enemy_reward:
+                    draw = draw + 1
                 else:
                     enemy_win = enemy_win + 1
                 eplen = t + 1
