@@ -45,6 +45,17 @@ def setup_logger_kwargs(exp_name, seed=None, data_dir=None,
                          run_name=run_name)
     return logger_kwargs
 
+DEFAULT_MAP_SETTINGS = {
+    (True, 1) : "Simple64_1Tank_v2_ai",
+    (True, 2) : "Simple64_2Tank_v2_ai",
+    (True, 4) : "Simple64_Tank_v2_ai",
+    (True, 8) : "Simple64_8Tank_v2_ai",
+    (False, 1) : "Simple64_1Tank_v2",
+    (False, 2) : "Simple64_2Tank_v2",
+    (False, 4) : "Simple64_Tank_v2",
+    (False, 8) : "Simple64_8Tank_v2"
+}
+
 def run():
     run_name = None
     if args.run_name != "":
@@ -68,11 +79,24 @@ def run():
 
     # ALG
     player_algo = get_algo(args.player_algo)
-    enemy_algo = get_algo(args.enemy_algo)
+    if args.enemy_algo.upper() == 'BLIZZARD':
+        use_blizzard_ai = True
+    else:
+        use_blizzard_ai = False
+        enemy_algo = get_algo(args.enemy_algo)
+
+    # set map
+    if args.env == "":
+        args.env = DEFAULT_MAP_SETTINGS[(use_blizzard_ai, args.agent_count)]
+        print ("Map : ", args.env)
 
     # ENV
-    env = MoonGym(args.env, framework=framework,
-        selfplay=args.selfplay)
+    if use_blizzard_ai == True:
+        env = MoonGym(args.env, framework=framework,
+            selfplay=False)
+    else:
+        env = MoonGym(args.env, framework=framework,
+            selfplay=True)
 
     n_agents = env.n_agents
     assert n_agents == args.agent_count
@@ -91,15 +115,16 @@ def run():
             model_filepath))
 
     # Agent Enemy - #1
-    p_id = 1
-    algo_dic_list[p_id] = []
-    for agent_idx in range(args.agent_count):
-        model_filepath = ""
-        if len(args.enemy_model_path) > 0:
-            model_filepath = os.path.join(args.enemy_model_path, 
-                "%d/model.pt" % agent_idx)
-        algo_dic_list[p_id].append(enemy_algo(env, args.agent_count, 
-            model_filepath))
+    if use_blizzard_ai == False:
+        p_id = 1
+        algo_dic_list[p_id] = []
+        for agent_idx in range(args.agent_count):
+            model_filepath = ""
+            if len(args.enemy_model_path) > 0:
+                model_filepath = os.path.join(args.enemy_model_path, 
+                    "%d/model.pt" % agent_idx)
+            algo_dic_list[p_id].append(enemy_algo(env, args.agent_count, 
+                model_filepath))
 
     for agent_idx in range(args.agent_count):
         logger.setup_pytorch_saver_with_key(\
@@ -109,7 +134,10 @@ def run():
     # Train 
     start_time = time.time()
     o = env.reset()
-    o_dic = {0:o[0], 1:o[1]}
+    if use_blizzard_ai == True:
+        o_dic = {0:o}
+    else:
+        o_dic = {0:o[0], 1:o[1]}
     ep_ret_dic = {0:0, 1:0}
     ep_len = 0
 
@@ -124,6 +152,9 @@ def run():
 
             # Action 결정 및 리워드 받기
             for player_idx in range(2):
+                if use_blizzard_ai == True and player_idx == 1:
+                    break
+
                 if player_idx == 0:
                     is_train = True
                 else:
@@ -135,9 +166,16 @@ def run():
 
                     a_list_dic[player_idx].append(a)
 
-            next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
-            ep_ret_dic[0] += r[0]
-            ep_ret_dic[1] += r[1]
+            if use_blizzard_ai == True:
+                next_o, r, d = env.step(a_list_dic[0])
+            else:
+                next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
+
+            if use_blizzard_ai == True:
+                ep_ret_dic[0] += r
+            else:
+                ep_ret_dic[0] += r[0]
+                ep_ret_dic[1] += r[1]
             ep_len += 1
 
             # 알고리즘 Step
@@ -146,12 +184,22 @@ def run():
             epoch_ended = t == args.steps-1
 
             for agent_idx in range(args.agent_count):
-                algo_dic_list[0][agent_idx].handle_step(\
-                    o_dic[0][agent_idx],
-                    a_list_dic[0][agent_idx], r[0],
-                    next_o[0][agent_idx], d, timeout, epoch_ended)
+                if use_blizzard_ai == True:
+                    algo_dic_list[0][agent_idx].handle_step(\
+                        o_dic[0][agent_idx],
+                        a_list_dic[0][agent_idx], r,
+                        next_o[agent_idx], d, timeout, epoch_ended)
+                else:
+                    algo_dic_list[0][agent_idx].handle_step(\
+                        o_dic[0][agent_idx],
+                        a_list_dic[0][agent_idx], r[0],
+                        next_o[0][agent_idx], d, timeout, epoch_ended)
             
             o = next_o
+            if use_blizzard_ai == True:
+                o_dic = {0:o}
+            else:
+                o_dic = {0:o[0], 1:o[1]}
 
             if terminal or epoch_ended:
                 if epoch_ended and not(terminal):
@@ -163,6 +211,10 @@ def run():
                     logger.store(EpRet=ep_ret_dic[0], EpLen=ep_len)
 
                 o = env.reset()
+                if use_blizzard_ai == True:
+                    o_dic = {0:o}
+                else:
+                    o_dic = {0:o[0], 1:o[1]}
                 ep_ret_dic = {0:0, 1:0}
                 ep_len = 0
 

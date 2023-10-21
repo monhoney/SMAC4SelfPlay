@@ -14,13 +14,13 @@ class COMPUTER(RLAlgoWrapper):
         assert False
 
     def act(self, obs, is_train):
-        selected_option = np.zeros(10)
+        selected_option = np.zeros(self.act_dim[0])
 
         # four options for moving
         random_values = np.random.uniform(0.7, 0.9, 4)
         random_values_2 = np.random.uniform(0, 0.6, 2)
         # attack first
-        selected_option[4:8] = 1.0
+        selected_option[4:self.act_dim[0]-6] = 1.0
         selected_option[:4] = random_values
         selected_option[-2:] = random_values_2
 

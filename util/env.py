@@ -8,7 +8,7 @@ else:
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', type=str, default='Simple64_Tank_v2')
+parser.add_argument('--env', type=str, default='')
 parser.add_argument('--hid', type=int, default=64)
 parser.add_argument('--l', type=int, default=2)
 parser.add_argument('--gamma', type=float, default=0.99)
@@ -32,7 +32,7 @@ parser.set_defaults(train=True)
 parser.add_argument('--run_name', type=str, default='')
 parser.add_argument('--agent_count', type=int, default=4)
 parser.add_argument('--player_algo', type=str, default='PPO')
-parser.add_argument('--enemy_algo', type=str, default='RANDOM')
+parser.add_argument('--enemy_algo', type=str, default='BLIZZARD')
 parser.add_argument('--player_model_path', type=str, default='')
 parser.add_argument('--enemy_model_path', type=str, default='')
 parser.add_argument('--save_freq', type=int, default=10)
