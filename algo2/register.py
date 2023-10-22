@@ -16,6 +16,18 @@ ALGO_DICT = {
     "COMPUTER"  : COMPUTER
 }
 
+DEFAULT_MAP_SETTINGS = {
+    (True, 1) : "Simple64_1Tank_v2_ai",
+    (True, 2) : "Simple64_2Tank_v2_ai",
+    (True, 4) : "Simple64_Tank_v2_ai",
+    (True, 8) : "Simple64_8Tank_v2_ai",
+    (False, 1) : "Simple64_1Tank_v2",
+    (False, 2) : "Simple64_2Tank_v2",
+    (False, 4) : "Simple64_Tank_v2",
+    (False, 8) : "Simple64_8Tank_v2"
+}
+
+
 def get_algo(algo_name):
     assert algo_name.upper() in ALGO_DICT
     return ALGO_DICT[algo_name.upper()]

@@ -18,7 +18,7 @@ from util.user_config import DEFAULT_DATA_DIR, FORCE_DATESTAMP
 from util.user_config import DEFAULT_SHORTHAND, WAIT_BEFORE_LAUNCH
 from util.user_config import DEFAULT_BACKEND
 from moon_gym import MoonGymFramework
-from algo2.register import get_algo
+from algo2.register import get_algo, DEFAULT_MAP_SETTINGS
 
 def setup_logger_kwargs(exp_name, seed=None, data_dir=None, 
         datestamp=False, use_wandb=False, run_name=None):
@@ -44,17 +44,6 @@ def setup_logger_kwargs(exp_name, seed=None, data_dir=None,
                          exp_name=exp_name, use_wandb=use_wandb,
                          run_name=run_name)
     return logger_kwargs
-
-DEFAULT_MAP_SETTINGS = {
-    (True, 1) : "Simple64_1Tank_v2_ai",
-    (True, 2) : "Simple64_2Tank_v2_ai",
-    (True, 4) : "Simple64_Tank_v2_ai",
-    (True, 8) : "Simple64_8Tank_v2_ai",
-    (False, 1) : "Simple64_1Tank_v2",
-    (False, 2) : "Simple64_2Tank_v2",
-    (False, 4) : "Simple64_Tank_v2",
-    (False, 8) : "Simple64_8Tank_v2"
-}
 
 def run():
     run_name = None
@@ -167,9 +156,9 @@ def run():
                     a_list_dic[player_idx].append(a)
 
             if use_blizzard_ai == True:
-                next_o, r, d = env.step(a_list_dic[0])
+                next_o, r, d, _ = env.step(a_list_dic[0])
             else:
-                next_o, r, d = env.step([a_list_dic[0], a_list_dic[1]])
+                next_o, r, d, _ = env.step([a_list_dic[0], a_list_dic[1]])
 
             if use_blizzard_ai == True:
                 ep_ret_dic[0] += r

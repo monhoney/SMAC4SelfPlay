@@ -116,13 +116,13 @@ class MoonGym:
         assert self.framework == MoonGymFramework.SMAC
 
         if self.selfplay == True:
-            reward, terminated, _ = self.mgym.step(\
+            reward, terminated, info = self.mgym.step(\
                 [self.choose_actions(actions[0], player_id=0),
                 self.choose_actions(actions[1], player_id=1)])
-            return self._get_obs(), reward, terminated
+            return self._get_obs(), reward, terminated, info
         else:
-            reward, terminated, _ = self.mgym.step(self.choose_actions(actions))
-            return self._get_obs(), reward, terminated
+            reward, terminated, info = self.mgym.step(self.choose_actions(actions))
+            return self._get_obs(), reward, terminated, info
 
     def save_replay(self):
         self.mgym.save_replay()
