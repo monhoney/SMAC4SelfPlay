@@ -88,8 +88,8 @@ if __name__ == "__main__":
     draw = 0
     eplens = []
     win_eplens = []
-    player_rewards = []
-    enemy_rewards = []
+    dead_players = []
+    dead_enemies = []
 
     for round in tqdm.tqdm(range(args.test_round_count)):
         o = env.reset()
@@ -117,23 +117,31 @@ if __name__ == "__main__":
                 next_o, r, d, info = env.step(a_list_dic[0])
             else:
                 next_o, r, d, info = env.step([a_list_dic[0], a_list_dic[1]])
-            
+                
             # 알고리즘 Step
             if d == True:
                 if use_blizzard_ai == True:
                     battle_won = info['battle_won']
+                    dead_player = info['dead_allies']
+                    dead_enemy = info['dead_enemies']
                 else:
                     battle_won = info[0]['battle_won']
+                    dead_player = info[0]['dead_allies']
+                    dead_enemy = info[0]['dead_enemies']
 
                 is_win = False
                 if t == args.eplen -1:
-                    print (info)
                     draw = draw + 1
                 elif battle_won == True:
                     player_win = player_win + 1
                     is_win = True
                 else:
                     enemy_win = enemy_win + 1
+                    assert info[0]['dead_allies'] == args.agent_count
+
+                dead_players.append(dead_player)
+                dead_enemies.append(dead_enemy)
+
                 eplen = t + 1
                 break
             
@@ -142,6 +150,10 @@ if __name__ == "__main__":
         eplens.append(eplen)
         if is_win == True:
             win_eplens.append(eplen)
+
+    total_point = player_win * 2.0 + draw * 1.0 - \
+        sum(dead_players) / args.agent_count + \
+        sum(dead_enemies) / args.agent_count
 
     print ("*" * 80)
     print ("%s vs %s" % (args.player_algo, args.enemy_algo))
@@ -152,6 +164,9 @@ if __name__ == "__main__":
     print ("Average EpLen : %.3f" % (np.array(eplens).mean()))
     if player_win > 0:
         print ("Average Win EpLen : %.3f" % (np.array(win_eplens).mean()))
+    print ("Average Dead Player : %.3f" % (np.array(dead_players).mean()))
+    print ("Average Dead Enemy : %.3f" % (np.array(dead_enemies).mean()))
+    print ("Point :%.3f" % total_point)
     print ("*" * 80)
 
     if args.json_output != "":
@@ -159,7 +174,9 @@ if __name__ == "__main__":
             "EnemyWin" : enemy_win,
             "Draw" : draw,
             "EpLens" : eplens,
-            "WinEpLens" : win_eplens}
+            "WinEpLens" : win_eplens,
+            "DeadPlayers" : dead_players,
+            "DeadEnemies" : dead_enemies}
         with open(args.json_output, "w") as f:
             json.dump(result, f, indent=4) 
 
