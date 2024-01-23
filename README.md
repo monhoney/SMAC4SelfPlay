@@ -1,4 +1,4 @@
-# SMAC2Study
+# SMAC4SelfPlay
 
 # 설치
 
@@ -102,9 +102,9 @@ $ python algo/mppo/mppo_sp.py --test --model_filepath $BASE_DIR/TEST_EXP_NAME/TE
 * 현재 SMAC for Self-Play ver2의 경우에 알고리즘을 등록하면 사용할 수 있는 구조로 되어 있음
 
 ## 알고리즘 추가 방법
-* algo2 폴더 아래에 알고리즘이름(ex. ABC)으로 폴더를 만들고 그 밑에 run.py파일을 만든다.
-* run.py파일은 algo2/wrapper.py의 RLAlgoWrapper를 상속한 ABC 클래스로 작성한다. RLAlgoWrapper에서 사용된 함수들은 모두 구현해야 한다.
-* algo2/register.py파일에 추가할 ABC 알고리즘에 대한 정보를 등록한다.
+* `algo2` 폴더 아래에 알고리즘이름(ex. ABC)으로 폴더를 만들고 그 밑에 `run.py` 파일을 만든다.
+* `run.py`파일은 `algo2/wrapper.py`의 `RLAlgoWrapper`를 상속한 ABC 클래스로 작성한다. `RLAlgoWrapper`에서 사용된 함수들은 모두 구현해야 한다.
+* `algo2/register.py`파일에 추가할 ABC 알고리즘에 대한 정보를 등록한다.
 
 ## 학습방법
 * player이 학습이 될 알고리즘이고, enemy가 상대편 알고리즘이다.
@@ -114,7 +114,7 @@ $ python train.py --player_algo PPO --enemy_algo RANDOM
 ```
 
 ### 학습한 모델끼리 학습을 하는 경우
-* 'data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save' 에 저장된 PPO 모델끼리 학습하는 경우에 아래와 같이 학습을 한다.
+* `data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save` 에 저장된 PPO 모델끼리 학습하는 경우에 아래와 같이 학습을 한다.
 ```
 $ python train.py --player_algo PPO --player_model_path data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save'--enemy_algo PPO --enemy_model_path data/2023-10-16_selfplay/2023-10-16_21-23-30-selfplay_s0/pyt_save'--enemy_algo
 ```
